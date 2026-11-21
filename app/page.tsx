@@ -1,7 +1,7 @@
 "use client"
 
 import { Fragment, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
 import { bajrang, shyama, purvyakruti } from "@/lib/samples"
 import { project, boq } from "@/lib/data"
 import {
@@ -58,9 +58,22 @@ export default function Home() {
     ])
   }
 
+  function resetAll() {
+    setVendors([
+      { name: "", text: "" },
+      { name: "", text: "" },
+      { name: "", text: "" },
+    ])
+    setResults([])
+    setErrors([])
+  }
+
   async function build() {
     const filled = vendors.filter((v) => v.text.trim())
-    if (!filled.length) return
+    if (!filled.length) {
+      alert("No data present — paste a vendor quote or load the samples first.")
+      return
+    }
     setLoading(true)
     setBuildCount(filled.length)
     setErrors([])
@@ -108,7 +121,12 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-6">
       <header className="space-y-1 pb-2">
-        <h1 className="font-sans text-3xl font-semibold tracking-tight">BidCompare AI</h1>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/60 text-primary-foreground shadow-sm">
+            <Sparkles className="size-5" />
+          </div>
+          <h1 className="font-sans text-3xl font-semibold tracking-tight">BidCompare AI</h1>
+        </div>
         <p className="text-muted-foreground">
           {project.client} · {project.name}
         </p>
@@ -163,6 +181,14 @@ export default function Home() {
               {e}
             </span>
           ))}
+          <Button
+            variant="destructive"
+            onClick={resetAll}
+            disabled={loading}
+            className="ml-auto"
+          >
+            Reset
+          </Button>
         </div>
         {loading && (
           <p className="text-sm text-muted-foreground">
@@ -195,7 +221,10 @@ function Comparative({ results }: { results: Result[] }) {
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Comparative statement</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="h-5 w-1.5 rounded-full bg-primary" />
+          Comparative statement
+        </h2>
         <Card>
           <CardContent className="pt-4">
             <Table>
@@ -288,10 +317,13 @@ function Comparative({ results }: { results: Result[] }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Flags from the quotes</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="h-5 w-1.5 rounded-full bg-amber-500" />
+          Flags from the quotes
+        </h2>
         <div className="grid gap-4 md:grid-cols-3">
           {results.map((r) => (
-            <Card key={r.name}>
+            <Card key={r.name} className="transition-shadow hover:shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>{r.name}</span>
@@ -320,8 +352,11 @@ function Comparative({ results }: { results: Result[] }) {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Recommendation</h2>
-        <Card>
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="h-5 w-1.5 rounded-full bg-green-600" />
+          Recommendation
+        </h2>
+        <Card className="border-green-600/40 bg-green-50/60 dark:bg-green-950/20">
           <CardContent className="pt-4 space-y-3">
             <p className="text-lg font-bold">{rec.headline}</p>
             <ul className="space-y-1.5">
