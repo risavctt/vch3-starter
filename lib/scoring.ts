@@ -45,9 +45,10 @@ export function priceQuote(q: ExtractedQuote) {
   const subtotal = round2(
     lines.reduce((sum, l) => sum + (l.amount ?? 0), 0)
   )
-  const gstAmount = q.gst_included
-    ? 0
-    : round2(subtotal * ((q.gst_percent ?? 0) / 100))
+  // Vendor says GST extra but didn't state the rate -> apply statutory 18%.
+  const gstAssumed = !q.gst_included && q.gst_percent === null
+  const gstPercent = q.gst_included ? 0 : q.gst_percent ?? 18
+  const gstAmount = round2(subtotal * (gstPercent / 100))
   const grandTotal = round2(subtotal + gstAmount)
 
   return {
@@ -55,6 +56,7 @@ export function priceQuote(q: ExtractedQuote) {
     lines,
     subtotal,
     gstAmount,
+    gstAssumed,
     grandTotal,
     quotedTotal: q.quoted_total,
   }
@@ -89,6 +91,14 @@ export function flagQuote(
     if (l.rate === null) {
       flags.push({ vendor, severity: "medium", text: `Line ${l.sl} has no rate` })
     }
+  }
+
+  if (priced.gstAssumed) {
+    flags.push({
+      vendor,
+      severity: "medium",
+      text: "GST rate not stated — 18% assumed. Vendor says rates exclude GST 'as per Government norms'.",
+    })
   }
 
   if (q.quoted_total === null) {
