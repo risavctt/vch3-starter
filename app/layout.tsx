@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Comparative — Vinayak Group",
+  title: "BidCompare AI — Vinayak Group",
   description: "Vendor quote comparison for construction work packages",
 }
 

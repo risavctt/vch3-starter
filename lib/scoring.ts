@@ -171,3 +171,45 @@ export function rank(priced: ReturnType<typeof priceQuote>[]) {
 export function formatINR(n: number) {
   return "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 })
 }
+
+type Ranked = ReturnType<typeof rank>[number]
+
+export function recommend(
+  ranked: Ranked[],
+  allFlags: Flag[]
+): { vendor: string; headline: string; reasons: string[] } {
+  const rank1 = ranked.find((r) => r.rank === 1)!
+  const rank2 = ranked.find((r) => r.rank === 2)
+  const vendor = rank1.vendor
+
+  const flagsFor = (v: string) => allFlags.filter((f) => f.vendor === v)
+  const topFlag = (v: string) =>
+    flagsFor(v).find((f) => f.severity === "high") ?? flagsFor(v).find((f) => f.severity === "medium")
+
+  const diff = rank2 ? rank2.grandTotal - rank1.grandTotal : 0
+  const headline = rank2
+    ? `Recommend ${vendor} — ${formatINR(rank1.grandTotal)} including GST, ${formatINR(diff)} below the next quote`
+    : `Recommend ${vendor} — ${formatINR(rank1.grandTotal)} including GST`
+
+  const reasons: string[] = []
+
+  // a) every high-severity flag against the recommended vendor, as a caveat
+  for (const f of flagsFor(vendor).filter((f) => f.severity === "high")) {
+    reasons.push(`But — ${f.text}`)
+  }
+
+  // b) why each other vendor ranks lower
+  for (const r of ranked.filter((r) => r.rank > 1)) {
+    const tf = topFlag(r.vendor)
+    reasons.push(
+      tf
+        ? `${r.vendor} ranks lower at ${formatINR(r.grandTotal)} including GST — ${tf.text}`
+        : `${r.vendor} ranks lower at ${formatINR(r.grandTotal)} including GST`
+    )
+  }
+
+  // c) always last
+  reasons.push("A human makes the final call.")
+
+  return { vendor, headline, reasons }
+}

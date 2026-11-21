@@ -8,6 +8,7 @@ import {
   priceQuote,
   flagQuote,
   rank,
+  recommend,
   formatINR,
   type ExtractedQuote,
   type Flag,
@@ -106,9 +107,11 @@ export default function Home() {
 
   return (
     <main className="mx-auto max-w-6xl p-6 space-y-6">
-      <header className="space-y-1">
-        <h1 className="font-sans text-2xl font-semibold">{project.name}</h1>
-        <p className="text-muted-foreground">{project.client}</p>
+      <header className="space-y-1 pb-2">
+        <h1 className="font-sans text-3xl font-semibold tracking-tight">BidCompare AI</h1>
+        <p className="text-muted-foreground">
+          {project.client} · {project.name}
+        </p>
         <p className="text-sm text-muted-foreground max-w-3xl pt-1">
           Reads vendor quotes in any format, normalises them against the BOQ, and shows
           what a manual comparative misses.
@@ -116,7 +119,7 @@ export default function Home() {
       </header>
 
       <div className="space-y-1">
-        <Button variant="secondary" onClick={loadSamples}>
+        <Button variant="secondary" onClick={loadSamples} disabled={loading}>
           Load sample quotes
         </Button>
         <p className="text-sm text-muted-foreground">
@@ -134,12 +137,14 @@ export default function Home() {
               <Input
                 placeholder="Vendor name"
                 value={v.name}
+                disabled={loading}
                 onChange={(e) => setVendor(i, "name", e.target.value)}
               />
               <Textarea
                 rows={8}
                 placeholder="Paste the vendor's quote text…"
                 value={v.text}
+                disabled={loading}
                 onChange={(e) => setVendor(i, "text", e.target.value)}
               />
             </CardContent>
@@ -167,142 +172,168 @@ export default function Home() {
         )}
       </div>
 
-      {results.length > 0 && (
-        <Comparative results={results} />
+      {results.length === 0 && !loading && (
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Paste vendor quotes above, or load the samples, to build the comparative.
+        </div>
       )}
+
+      {results.length > 0 && <Comparative results={results} />}
     </main>
   )
 }
 
 function Comparative({ results }: { results: Result[] }) {
   const money = (n: number | null) => (n === null ? "—" : formatINR(n))
+  const rankBadge = (r: number): "success" | "secondary" =>
+    r === 1 ? "success" : "secondary"
+  const rec = recommend(
+    results.map((r) => ({ ...r.priced, rank: r.rank })),
+    results.flatMap((r) => r.flags)
+  )
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="pt-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SL</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                {results.map((r) => (
-                  <TableHead key={r.name} className="text-right" colSpan={2}>
-                    <div className="flex items-center justify-end gap-2">
-                      <span className="text-foreground font-semibold">{r.name}</span>
-                      <Badge variant={r.rank === 1 ? "default" : "secondary"}>
-                        Rank {r.rank}
-                      </Badge>
-                    </div>
-                  </TableHead>
-                ))}
-              </TableRow>
-              <TableRow>
-                <TableHead />
-                <TableHead />
-                <TableHead />
-                <TableHead />
-                {results.map((r) => (
-                  <Fragment key={r.name}>
-                    <TableHead className="text-right">Rate</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </Fragment>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {boq.map((b, rowIdx) => {
-                const cells = results.map((r) => r.priced.lines[rowIdx])
-                const rates = cells
-                  .map((c) => c.rate)
-                  .filter((x): x is number => x !== null)
-                const lowest = rates.length ? Math.min(...rates) : null
-                return (
-                  <TableRow key={b.sl}>
-                    <TableCell>{b.sl}</TableCell>
-                    <TableCell className="min-w-[14rem]">{b.desc}</TableCell>
-                    <TableCell>{b.unit}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {b.qty.toLocaleString("en-IN")}
-                    </TableCell>
-                    {cells.map((c, i) => {
-                      const isLowest = c.rate !== null && c.rate === lowest
-                      const unitMismatch =
-                        c.quotedUnit !== null &&
-                        c.quotedUnit.trim().toUpperCase().replace(/\.+$/, "") !==
-                          b.unit.toUpperCase()
-                      return (
-                        <Fragment key={i}>
-                          <TableCell
-                            className={
-                              "text-right tabular-nums " +
-                              (isLowest ? "bg-green-100 dark:bg-green-900/30 font-semibold" : "")
-                            }
-                          >
-                            {c.rate === null ? "—" : c.rate}
-                            {unitMismatch && (
-                              <Badge variant="amber" className="ml-1">
-                                {c.quotedUnit}
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {money(c.amount)}
-                          </TableCell>
-                        </Fragment>
-                      )
-                    })}
-                  </TableRow>
-                )
-              })}
-
-              <SummaryRow
-                label="Subtotal"
-                results={results}
-                value={(r) => r.priced.subtotal}
-              />
-              <SummaryRow label="GST" results={results} value={(r) => r.priced.gstAmount} />
-              <SummaryRow
-                label="Grand Total"
-                results={results}
-                value={(r) => r.priced.grandTotal}
-                bold
-              />
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {results.map((r) => (
-          <Card key={r.name}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>{r.name}</span>
-                <Badge variant={r.rank === 1 ? "default" : "secondary"}>Rank {r.rank}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {r.flags.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No flags.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {r.flags.map((f, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <Badge variant={f.severity === "high" ? "destructive" : "amber"}>
-                        {f.severity}
-                      </Badge>
-                      <span>{f.text}</span>
-                    </li>
+    <div className="space-y-8">
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Comparative statement</h2>
+        <Card>
+          <CardContent className="pt-4">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>SL</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  {results.map((r) => (
+                    <TableHead key={r.name} className="text-right" colSpan={2}>
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-foreground font-semibold">{r.name}</span>
+                        <Badge variant={rankBadge(r.rank)}>Rank {r.rank}</Badge>
+                      </div>
+                    </TableHead>
                   ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </TableRow>
+                <TableRow>
+                  <TableHead />
+                  <TableHead />
+                  <TableHead />
+                  <TableHead />
+                  {results.map((r) => (
+                    <Fragment key={r.name}>
+                      <TableHead className="text-right">Rate</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </Fragment>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {boq.map((b, rowIdx) => {
+                  const cells = results.map((r) => r.priced.lines[rowIdx])
+                  const rates = cells
+                    .map((c) => c.rate)
+                    .filter((x): x is number => x !== null)
+                  const lowest = rates.length ? Math.min(...rates) : null
+                  return (
+                    <TableRow key={b.sl} className={rowIdx % 2 === 1 ? "bg-muted/30" : ""}>
+                      <TableCell>{b.sl}</TableCell>
+                      <TableCell className="min-w-[14rem]">{b.desc}</TableCell>
+                      <TableCell>{b.unit}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums">
+                        {b.qty.toLocaleString("en-IN")}
+                      </TableCell>
+                      {cells.map((c, i) => {
+                        const isLowest = c.rate !== null && c.rate === lowest
+                        const unitMismatch =
+                          c.quotedUnit !== null &&
+                          c.quotedUnit.trim().toUpperCase().replace(/\.+$/, "") !==
+                            b.unit.toUpperCase()
+                        return (
+                          <Fragment key={i}>
+                            <TableCell
+                              className={
+                                "text-right font-mono tabular-nums " +
+                                (isLowest ? "bg-green-100 dark:bg-green-900/30 font-semibold" : "")
+                              }
+                            >
+                              {c.rate === null ? "—" : c.rate}
+                              {unitMismatch && (
+                                <Badge variant="amber" className="ml-1">
+                                  {c.quotedUnit}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-mono tabular-nums">
+                              {money(c.amount)}
+                            </TableCell>
+                          </Fragment>
+                        )
+                      })}
+                    </TableRow>
+                  )
+                })}
+
+                <SummaryRow label="Subtotal" results={results} value={(r) => r.priced.subtotal} />
+                <SummaryRow label="GST" results={results} value={(r) => r.priced.gstAmount} />
+                <SummaryRow
+                  label="Grand Total"
+                  results={results}
+                  value={(r) => r.priced.grandTotal}
+                  bold
+                />
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Flags from the quotes</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {results.map((r) => (
+            <Card key={r.name}>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{r.name}</span>
+                  <Badge variant={rankBadge(r.rank)}>Rank {r.rank}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {r.flags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No flags.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {r.flags.map((f, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <Badge variant={f.severity === "high" ? "destructive" : "amber"}>
+                          {f.severity}
+                        </Badge>
+                        <span>{f.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Recommendation</h2>
+        <Card>
+          <CardContent className="pt-4 space-y-3">
+            <p className="text-lg font-bold">{rec.headline}</p>
+            <ul className="space-y-1.5">
+              {rec.reasons.map((reason, i) => (
+                <li key={i} className="text-sm text-muted-foreground">
+                  {reason}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   )
 }
@@ -327,7 +358,7 @@ function SummaryRow({
         <TableCell
           key={r.name}
           colSpan={2}
-          className={"text-right tabular-nums " + (bold ? "font-bold" : "")}
+          className={"text-right font-mono tabular-nums " + (bold ? "font-bold" : "")}
         >
           {formatINR(value(r))}
         </TableCell>

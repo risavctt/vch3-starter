@@ -5,6 +5,7 @@ const variants = {
   secondary: "bg-secondary text-secondary-foreground",
   outline: "border border-border text-foreground",
   amber: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+  success: "bg-green-600 text-white dark:bg-green-500",
   destructive: "bg-destructive/15 text-destructive",
 }
 
