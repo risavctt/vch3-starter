@@ -10,7 +10,7 @@ Return JSON ONLY. No commentary, no markdown fences, no explanation. Output exac
 
 {
   "vendor_name": string,
-  "lines": [ { "sl": number, "unit": string|null, "rate": number|null } ],
+  "lines": [ { "sl": number, "unit": string|null, "rate": number|null, "qty": number|null } ],
   "gst_percent": number|null,
   "gst_included": boolean,
   "payment_terms": string|null,
@@ -28,6 +28,7 @@ Rules:
 - escalation_clause is true if any term lets the rate change after the work order is issued (e.g. chemical price increases).
 - quoted_total is the total the vendor printed, or null if they printed none.
 - Return the rate per unit, not the line amount.
+- qty is the quantity printed in the vendor's QUANTITY column for that line. If the vendor printed no quantity, return null. Do not copy the BOQ quantity.
 
 Report only what is printed in the document. You are a transcriber, not an estimator.
 

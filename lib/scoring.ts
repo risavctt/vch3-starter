@@ -2,7 +2,7 @@ import { boq } from "@/lib/data"
 
 export type ExtractedQuote = {
   vendor_name: string
-  lines: { sl: number; unit: string | null; rate: number | null }[]
+  lines: { sl: number; unit: string | null; rate: number | null; qty: number | null }[]
   gst_percent: number | null
   gst_included: boolean
   payment_terms: string | null
@@ -75,6 +75,35 @@ export function flagQuote(
         vendor,
         severity: "high",
         text: `Line ${l.sl} quoted in ${l.quotedUnit}, BOQ says ${l.boqUnit} — not comparable`,
+      })
+    }
+  }
+
+  const qtyMismatches = boq
+    .map((b) => {
+      const line = q.lines.find((l) => l.sl === b.sl)
+      const vendorQty = line?.qty ?? null
+      const off =
+        vendorQty !== null && b.qty > 0 && Math.abs(vendorQty - b.qty) / b.qty > 0.01
+      return off ? { sl: b.sl, vendorQty: vendorQty as number, unit: line?.unit ?? b.unit, boqQty: b.qty } : null
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
+  const fmtQty = (n: number) => n.toLocaleString("en-IN")
+
+  if (qtyMismatches.length > 2) {
+    const e = qtyMismatches[0]
+    flags.push({
+      vendor,
+      severity: "high",
+      text: `Quoted against different quantities on ${qtyMismatches.length} of 7 lines — vendor has priced a different scope (e.g. line ${e.sl}: ${fmtQty(e.vendorQty)} vs BOQ ${fmtQty(e.boqQty)})`,
+    })
+  } else {
+    for (const m of qtyMismatches) {
+      flags.push({
+        vendor,
+        severity: "high",
+        text: `Line ${m.sl} quoted against ${m.vendorQty} ${m.unit}, BOQ says ${m.boqQty} — vendor has priced a different scope`,
       })
     }
   }

@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, useState } from "react"
+import { Loader2 } from "lucide-react"
 import { project, boq } from "@/lib/data"
 import {
   priceQuote,
@@ -39,6 +40,7 @@ export default function Home() {
     { name: "", text: "" },
   ])
   const [loading, setLoading] = useState(false)
+  const [buildCount, setBuildCount] = useState(0)
   const [results, setResults] = useState<Result[]>([])
   const [errors, setErrors] = useState<string[]>([])
 
@@ -50,8 +52,9 @@ export default function Home() {
     const filled = vendors.filter((v) => v.text.trim())
     if (!filled.length) return
     setLoading(true)
+    setBuildCount(filled.length)
     setErrors([])
-    setResults([])
+    // Keep previous results visible while rebuilding.
 
     const errs: string[] = []
     const settled = await Promise.all(
@@ -126,15 +129,24 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="flex items-center gap-3">
-        <Button onClick={build} disabled={loading}>
-          {loading ? "Building…" : "Build comparative"}
-        </Button>
-        {errors.map((e, i) => (
-          <span key={i} className="text-sm text-destructive">
-            {e}
-          </span>
-        ))}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <Button onClick={build} disabled={loading}>
+            {loading && <Loader2 className="animate-spin" />}
+            {loading ? "Reading quotes…" : "Build comparative"}
+          </Button>
+          {errors.map((e, i) => (
+            <span key={i} className="text-sm text-destructive">
+              {e}
+            </span>
+          ))}
+        </div>
+        {loading && (
+          <p className="text-sm text-muted-foreground">
+            Extracting line items, units, tax and terms from {buildCount}{" "}
+            {buildCount === 1 ? "quote" : "quotes"}
+          </p>
+        )}
       </div>
 
       {results.length > 0 && (
