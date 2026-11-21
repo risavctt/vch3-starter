@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react"
 import { Loader2 } from "lucide-react"
+import { bajrang, shyama, purvyakruti } from "@/lib/samples"
 import { project, boq } from "@/lib/data"
 import {
   priceQuote,
@@ -46,6 +47,14 @@ export default function Home() {
 
   function setVendor(i: number, key: "name" | "text", value: string) {
     setVendors((v) => v.map((x, j) => (j === i ? { ...x, [key]: value } : x)))
+  }
+
+  function loadSamples() {
+    setVendors([
+      { name: "Bajrang Construction & Waterproofing", text: bajrang },
+      { name: "Shyama's Prevention & Cure Co.", text: shyama },
+      { name: "Purvyakruti Sales & Services Pvt. Ltd.", text: purvyakruti },
+    ])
   }
 
   async function build() {
@@ -105,6 +114,15 @@ export default function Home() {
           what a manual comparative misses.
         </p>
       </header>
+
+      <div className="space-y-1">
+        <Button variant="secondary" onClick={loadSamples}>
+          Load sample quotes
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          No quotes handy? Load three real vendor quotes for this package.
+        </p>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {vendors.map((v, i) => (
